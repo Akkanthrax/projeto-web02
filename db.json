@@ -1,0 +1,13 @@
+{
+    "usuarios": [
+      {
+        "id": "0525",
+        "nome": "Jose",
+        "sobrenome": "Silva",
+        "email": "js@sj.com",
+        "telefone": "47912345678",
+        "login": "Jose joãozinho",
+        "senha": "1234"
+      }
+    ]
+  }
