@@ -3,31 +3,14 @@ import { getUsuarios, deleteUsuario, updateUsuario, type Usuario } from "../../a
 import { FaEdit, FaTrash, FaSave, FaTimes } from "react-icons/fa";
 import Swal from 'sweetalert2';
 
-import InputMask from "react-input-mask";
-import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
-import { useForm } from "react-hook-form";
 
-// Esquema de validação com Yup
-const schema = yup.object().shape({
-  nome: yup.string().required("O nome é obrigatório"),
-  sobrenome: yup.string().required("O sobrenome é obrigatório"),
-  email: yup.string().required("O e-mail é obrigatório").email("Digite um e-mail válido"),
-  telefone: yup.string().required("O telefone é obrigatório").min(11, "Número inválido"),
-  login: yup.string().required("O nome de usuário é obrigatório").min(3, "Mínimo de 3 caracteres"),
-  senha: yup.string().required("A senha é obrigatória").min(3, "Mínimo de 3 caracteres"),
-});
 
 function ListaUsuario() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | number | null>(null);
+  const [editedUser, setEditedUser] = useState<Usuario | null>(null)
   const [isUpdating, setIsUpdating] = useState(false);
-
-  // Hook do react-hook-form
-  const { register, handleSubmit, formState: { errors } } = useForm({
-    resolver: yupResolver(schema),
-  });
 
   const fetchUsuarios = async () => {
     try {
@@ -70,122 +53,107 @@ function ListaUsuario() {
 
   const handleEdit = (usuario: Usuario) => {
     setEditingId(usuario.id || null);
+    setEditedUser({ ...usuario })
   };
 
-  const handleSave = async (data: any) => {
-    if (!editingId) return;
-    try {
-      setIsUpdating(true);
-      await updateUsuario(editingId, data);
-      setUsuarios(prev => prev.map(user => user.id === editingId ? { ...user, ...data } : user));
-      setEditingId(null);
-    } catch (error) {
-      console.log("Erro ao atualizar o usuário", error);
-      Swal.fire("Erro!", "Não foi possível atualizar o usuário", "error");
-    } finally {
-      setIsUpdating(false);
+  const handleChanges = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if(!editedUser) return;
+    const {name, value} = e.target
+    setEditedUser(prev => ({
+      ...prev!,
+      [name]: value
+    }))
+  }
+
+  const handleSave = async () => {
+    if(!editedUser || !editingId) return;
+    try{
+      setIsUpdating(true)
+      await updateUsuario(editingId, editedUser)
+      setUsuarios(prev => prev.map(user => user.id === editingId ? editedUser : user))
+      setEditingId(null)
+      setEditedUser(null)
+    }catch(error){
+      console.log("Erro ao atualizar o usuário", error)
+      Swal.fire("Erro!", "Não foi possivel atualizar o usuário", "error")
+
+    }finally{
+      setIsUpdating(false)
     }
-  };
+  }
 
   const handleCancel = () => {
-    setEditingId(null);
-  };
+    setEditingId(null)
+    setEditedUser(null)
+  }
+
+  const renderInputField = (fieldName: keyof Usuario, value: string) => {
+    return(
+      <input type="text" name={fieldName} value={value} onChange={handleChanges} className="p-2"/>
+    )
+  }
 
   return (
-    <div className="h-screen flex flex-col items-center justify-center bg-blue-300">
-      <h1 className="text-3xl font-bold text-center text-white">
-        LISTA DE USUÁRIOS CADASTRADOS
+    <div className="h-screen flex flex-col items-center justify-center bg-blue-300 p-4">
+      <h1 className="text-4xl font-bold text-center text-white mb-6">
+        LISTA DE USUÁRIOS
       </h1>
       {loading ? (
-        <p className="text-white">Carregando usuários...</p>
+        <p className="text-white text-lg">Carregando usuários...</p>
       ) : usuarios.length === 0 ? (
-        <p className="text-white">Nenhum usuário cadastrado</p>
+        <p className="text-white text-lg">Nenhum usuário cadastrado</p>
       ) : (
-        <form onSubmit={handleSubmit(handleSave)}>
-          <table className="w-full">
-            <thead className="bg-white">
+        <div className="w-full max-w-10xl bg-white p-6 rounded-lg shadow-lg overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-blue-700 text-white">
               <tr>
-                <th className="border px-2 py-2 text-left">Nome</th>
-                <th className="px-2 py-2 text-left">Sobrenome</th>
-                <th className="px-2 py-2 text-left">Email</th>
-                <th className="px-2 py-2 text-left">Telefone</th>
-                <th className="px-2 py-2 text-left">Login</th>
-                <th className="px-2 py-2 text-left">Senha</th>
-                <th className="px-2 py-2 text-center">Ação</th>
+                <th className="p-3">Nome</th>
+                <th className="p-3">Sobrenome</th>
+                <th className="p-3">Email</th>
+                <th className="p-3">Telefone</th>
+                <th className="p-3">Login</th>
+                <th className="p-3">Senha</th>
+                <th className="p-3">Ações</th>
               </tr>
             </thead>
-            <tbody className="bg-gray-200">
+            <tbody>
               {usuarios.map((usuario) => (
-                <tr key={usuario.id}>
-                  <td className="px-2">
-                    {editingId === usuario.id ? (
-                      <>
-                        <input {...register("nome")} defaultValue={usuario.nome} className="p-2 border border-gray-300" />
-                        <p className="text-red-500 text-sm">{errors.nome?.message}</p>
-                      </>
-                    ) : usuario.nome}
+                <tr key={usuario.id} className="odd:bg-gray-100 even:bg-gray-200">
+                  <td className="p-3">
+                    {editingId === usuario.id ? renderInputField("nome", editedUser?.nome || "") : usuario.nome}
                   </td>
-                  <td className="px-2">
-                    {editingId === usuario.id ? (
-                      <>
-                        <input {...register("sobrenome")} defaultValue={usuario.sobrenome} className="p-2 border border-gray-300" />
-                        <p className="text-red-500 text-sm">{errors.sobrenome?.message}</p>
-                      </>
-                    ) : usuario.sobrenome}
+                  <td className="p-3">
+                    {editingId === usuario.id ? renderInputField("sobrenome", editedUser?.sobrenome || "") : usuario.sobrenome}
                   </td>
-                  <td className="px-2">
-                    {editingId === usuario.id ? (
-                      <>
-                        <input {...register("email")} defaultValue={usuario.email} className="p-2 border border-gray-300" />
-                        <p className="text-red-500 text-sm">{errors.email?.message}</p>
-                      </>
-                    ) : usuario.email}
+                  <td className="p-3">
+                    {editingId === usuario.id ? renderInputField("email", editedUser?.email || "") : usuario.email}
                   </td>
-                  <td className="px-2">
-                    {editingId === usuario.id ? (
-                      <>
-                        <InputMask mask="(99) 99999-9999" {...register("telefone")} defaultValue={usuario.telefone} className="p-2 border border-gray-300" />
-                        <p className="text-red-500 text-sm">{errors.telefone?.message}</p>
-                      </>
-                    ) : usuario.telefone}
+                  <td className="p-3">
+                    {editingId === usuario.id ? renderInputField("telefone", editedUser?.telefone || "") : usuario.telefone}
                   </td>
-                  <td className="px-2">
-                    {editingId === usuario.id ? (
-                      <>
-                        <input {...register("login")} defaultValue={usuario.login} className="p-2 border border-gray-300" />
-                        <p className="text-red-500 text-sm">{errors.login?.message}</p>
-                      </>
-                    ) : usuario.login}
+                  <td className="p-3">
+                    {editingId === usuario.id ? renderInputField("login", editedUser?.login || "") : usuario.login}
                   </td>
-                  <td className="px-2">
-                    {editingId === usuario.id ? (
-                      <>
-                        <input {...register("senha")} defaultValue={usuario.senha} className="p-2 border border-gray-300" />
-                        <p className="text-red-500 text-sm">{errors.senha?.message}</p>
-                      </>
-                    ) : usuario.senha}
+                  <td className="p-3">
+                    {editingId === usuario.id ? renderInputField("senha", editedUser?.senha || "") : "******"}
                   </td>
-                  <td className="px-2 text-center flex justify-center gap-3">
+                  <td className="p-3 flex space-x-2 ">
                     {editingId === usuario.id ? (
                       <>
-                        <button type="submit" disabled={isUpdating}>
+                        <button onClick={handleSave} disabled={isUpdating} className="p-2 bg-green-600 text-white rounded-lg hover:bg-green-500">
                           <FaSave />
-                          <span>Salvar</span>
                         </button>
-                        <button onClick={handleCancel}>
+                        <button onClick={handleCancel} className="p-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500">
                           <FaTimes />
-                          <span>Cancelar</span>
                         </button>
                       </>
                     ) : (
                       <>
-                        <button onClick={() => handleEdit(usuario)}>
+                        <button onClick={() => handleEdit(usuario)} className="p-2 bg-blue-700 text-white rounded-lg hover:bg-blue-500">
                           <FaEdit />
-                          <span>Editar</span>
                         </button>
-                        <button onClick={() => handleDelete(usuario.id)}>
-                          <FaTrash className="text-red-500" />
-                          <span>Excluir</span>
+                        <button onClick={() => handleDelete(usuario.id)} className="p-2 bg-red-700 text-white rounded-lg hover:bg-red-500">
+                          <FaTrash />
                         </button>
                       </>
                     )}
@@ -194,7 +162,7 @@ function ListaUsuario() {
               ))}
             </tbody>
           </table>
-        </form>
+        </div>
       )}
     </div>
   );
